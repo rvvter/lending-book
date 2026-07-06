@@ -659,7 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==================== CSV 导出 ====================
 
-function exportCSV(records) {
+async function exportCSV(records) {
   if (records.length === 0) {
     showToast('没有数据可导出');
     return;
@@ -673,14 +673,34 @@ function exportCSV(records) {
     .map(r => `${r.date},${r.time || ''},${r.type === 'lend' ? '借出' : '还款'},"${r.name}",${r.amount},"${r.note || ''}"`)
     .join('\n');
 
+  const filename = `借贷记录_${new Date().toISOString().slice(0, 10)}.csv`;
   const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8' });
+
+  // 优先使用分享功能（可发送到微信/QQ/邮件等）
+  if (navigator.share && navigator.canShare) {
+    const file = new File([blob], filename, { type: 'text/csv' });
+    try {
+      await navigator.share({
+        title: '借贷记录备份',
+        text: '借贷记账数据备份',
+        files: [file]
+      });
+      showToast('备份已发送');
+      return;
+    } catch (e) {
+      // 用户取消分享，回退到下载
+      if (e.name === 'AbortError') return;
+    }
+  }
+
+  // 不支持分享时回退到直接下载
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `借贷记录_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
-  showToast('导出成功');
+  showToast('已下载到手机');
 }
 
 // ==================== 事件绑定 ====================
