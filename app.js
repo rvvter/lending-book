@@ -206,6 +206,7 @@ function renderRecords(records) {
             <div class="record-info">
               <div class="record-name">${escapeHtml(r.name)}</div>
               <div class="record-meta">
+                <span>${r.time || ''}</span>
                 ${r.note ? `<span class="record-note">${escapeHtml(r.note)}</span>` : ''}
               </div>
             </div>
@@ -351,9 +352,12 @@ function openModal(mode) {
     submitBtn.className = 'btn btn-submit repay';
   }
 
-  document.getElementById('input-date').value = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  document.getElementById('input-date').value = now.toISOString().slice(0, 10);
+  document.getElementById('input-time').value = now.toTimeString().slice(0, 5);
   document.getElementById('form-add').reset();
-  document.getElementById('input-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('input-date').value = now.toISOString().slice(0, 10);
+  document.getElementById('input-time').value = now.toTimeString().slice(0, 5);
   overlay.classList.remove('hidden');
   setTimeout(() => document.getElementById('input-name').focus(), 300);
   updateNameSuggestions();
@@ -418,7 +422,7 @@ function showPersonDetail(records, name) {
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:12px;padding:2px 8px;border-radius:10px;font-weight:600;${r.type === 'lend' ? 'background:#FED7D7;color:#C53030' : 'background:#C6F6D5;color:#38A169'}">${r.type === 'lend' ? '借出' : '还款'}</span>
-              <span style="font-size:13px;color:#718096;">${r.date}${r.note ? ' · ' + r.note : ''}</span>
+              <span style="font-size:13px;color:#718096;">${r.date} ${r.time || ''}${r.note ? ' · ' + r.note : ''}</span>
             </div>
             <span style="font-weight:700;${r.type === 'lend' ? 'color:#C53030' : 'color:#38A169'}">${r.type === 'lend' ? '-' : '+'}${formatMoney(r.amount)}</span>
           </div>
@@ -514,7 +518,7 @@ function drawIOU(record) {
     `${amountCN}`,
     `（小写：¥ ${record.amount.toFixed(2)}）`,
     ``,
-    `借款日期：${record.date}`,
+    `借款日期：${record.date}  ${record.time || ''}`,
     record.note ? `借款事由：${record.note}` : '',
     ``,
     `此据。`,
@@ -620,10 +624,10 @@ function exportCSV(records) {
 
   // UTF-8 BOM 使 Excel 正确识别中文
   const BOM = '﻿';
-  const header = '日期,类型,姓名,金额,备注\n';
+  const header = '日期,时间,类型,姓名,金额,备注\n';
   const rows = records
     .sort((a, b) => b.createdAt - a.createdAt)
-    .map(r => `${r.date},${r.type === 'lend' ? '借出' : '还款'},"${r.name}",${r.amount},"${r.note || ''}"`)
+    .map(r => `${r.date},${r.time || ''},${r.type === 'lend' ? '借出' : '还款'},"${r.name}",${r.amount},"${r.note || ''}"`)
     .join('\n');
 
   const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8' });
@@ -694,6 +698,7 @@ function init() {
     const name = document.getElementById('input-name').value.trim();
     const amount = parseFloat(document.getElementById('input-amount').value);
     const date = document.getElementById('input-date').value;
+    const time = document.getElementById('input-time').value;
     const note = document.getElementById('input-note').value.trim();
 
     if (!name) { showToast('请输入姓名'); return; }
@@ -706,6 +711,7 @@ function init() {
       type: modalMode,
       amount,
       date,
+      time: time || '00:00',
       note,
       createdAt: Date.now()
     };
