@@ -651,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btn) {
     btn.addEventListener('click', async () => {
       const records = await dbGetAll();
-      exportCSV(records);
+      exportAndShare(records, '借贷记录备份');
       markBackupDone();
     });
   }
@@ -659,48 +659,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==================== CSV 导出 ====================
 
-async function exportCSV(records) {
-  if (records.length === 0) {
-    showToast('没有数据可导出');
-    return;
-  }
-
-  // UTF-8 BOM 使 Excel 正确识别中文
+function buildCSV(records) {
   const BOM = '﻿';
   const header = '日期,时间,类型,姓名,金额,备注\n';
   const rows = records
     .sort((a, b) => b.createdAt - a.createdAt)
     .map(r => `${r.date},${r.time || ''},${r.type === 'lend' ? '借出' : '还款'},"${r.name}",${r.amount},"${r.note || ''}"`)
     .join('\n');
+  return new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8' });
+}
+
+async function exportAndShare(records, title) {
+  if (records.length === 0) {
+    showToast('没有数据可导出');
+    return;
+  }
 
   const filename = `借贷记录_${new Date().toISOString().slice(0, 10)}.csv`;
-  const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8' });
+  const blob = buildCSV(records);
 
-  // 优先使用分享功能（可发送到微信/QQ/邮件等）
+  // 分享功能（可发送到微信/QQ/邮件/网盘等）
   if (navigator.share && navigator.canShare) {
     const file = new File([blob], filename, { type: 'text/csv' });
     try {
-      await navigator.share({
-        title: '借贷记录备份',
-        text: '借贷记账数据备份',
-        files: [file]
-      });
+      await navigator.share({ title, text: '借贷记账数据备份', files: [file] });
       showToast('备份已发送');
       return;
     } catch (e) {
-      // 用户取消分享，回退到下载
       if (e.name === 'AbortError') return;
     }
   }
 
-  // 不支持分享时回退到直接下载
+  // 不支持分享时回退到下载
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
   URL.revokeObjectURL(url);
   showToast('已下载到手机');
+}
+
+function exportCSV(records) {
+  exportAndShare(records, '借贷记录备份');
 }
 
 // ==================== 事件绑定 ====================
@@ -748,11 +749,34 @@ function init() {
     document.getElementById('menu-popup').classList.add('hidden');
   });
 
-  // 导出菜单
-  document.getElementById('menu-export').addEventListener('click', async () => {
+  // 备份菜单
+  document.getElementById('menu-backup').addEventListener('click', async () => {
     document.getElementById('menu-popup').classList.add('hidden');
     const records = await dbGetAll();
-    exportCSV(records);
+    exportAndShare(records, '借贷记录备份');
+    markBackupDone();
+  });
+
+  // 发送到邮箱
+  document.getElementById('menu-email').addEventListener('click', async () => {
+    document.getElementById('menu-popup').classList.add('hidden');
+    const records = await dbGetAll();
+    if (records.length === 0) { showToast('没有数据可导出'); return; }
+    const blob = buildCSV(records);
+    const filename = `借贷记录_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    // 先下载，再打开QQ邮箱
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    showToast('文件已下载，正在打开QQ邮箱...');
+    setTimeout(() => {
+      window.open('https://mail.qq.com', '_blank');
+    }, 1000);
     markBackupDone();
   });
 
