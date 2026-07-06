@@ -614,6 +614,49 @@ function downloadIOU(record) {
   showToast('借条已保存');
 }
 
+// ==================== 备份提醒 ====================
+
+const BACKUP_KEY = 'lastBackupDate';
+const BACKUP_INTERVAL_DAYS = 7;
+
+function checkBackupReminder() {
+  const lastBackup = localStorage.getItem(BACKUP_KEY);
+  const banner = document.getElementById('backup-banner');
+  const daysEl = document.getElementById('backup-days');
+
+  if (!lastBackup) {
+    // 从未备份过
+    banner.classList.remove('hidden');
+    if (daysEl) daysEl.textContent = '多';
+    return;
+  }
+
+  const daysSince = Math.floor((Date.now() - parseInt(lastBackup)) / (1000 * 60 * 60 * 24));
+  if (daysSince >= BACKUP_INTERVAL_DAYS) {
+    banner.classList.remove('hidden');
+    if (daysEl) daysEl.textContent = daysSince;
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function markBackupDone() {
+  localStorage.setItem(BACKUP_KEY, Date.now().toString());
+  document.getElementById('backup-banner').classList.add('hidden');
+}
+
+// 绑定备份按钮
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('backup-now');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      const records = await dbGetAll();
+      exportCSV(records);
+      markBackupDone();
+    });
+  }
+});
+
 // ==================== CSV 导出 ====================
 
 function exportCSV(records) {
@@ -690,6 +733,7 @@ function init() {
     document.getElementById('menu-popup').classList.add('hidden');
     const records = await dbGetAll();
     exportCSV(records);
+    markBackupDone();
   });
 
   // 表单提交
@@ -735,6 +779,7 @@ function init() {
 
   // 初始加载
   refreshAll();
+  checkBackupReminder();
 }
 
 // 注册 Service Worker

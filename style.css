@@ -129,6 +129,34 @@ body {
 .view { display: none; padding: 0 16px 120px; }
 .view.active { display: block; }
 
+/* ===== 备份提醒 ===== */
+.backup-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 16px 12px;
+  padding: 12px 16px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #92400E;
+  gap: 12px;
+}
+.backup-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 16px;
+  background: #F59E0B;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.backup-btn:active { background: #D97706; }
+
 /* ===== 记录列表 ===== */
 #record-list { padding-top: 4px; }
 
