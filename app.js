@@ -260,11 +260,11 @@ function renderContacts(records) {
     `;
   }).join('');
 
-  // 点击联系人 → 查看详情
+  // 点击联系人 → 弹出操作选项
   container.querySelectorAll('.contact-card').forEach(card => {
     card.addEventListener('click', () => {
       const name = card.dataset.name;
-      showPersonDetail(records, name);
+      showContactActions(name);
     });
   });
 }
@@ -336,7 +336,7 @@ async function updateNameSuggestions() {
 
 let modalMode = 'lend'; // 'lend' | 'repay'
 
-function openModal(mode) {
+function openModal(mode, prefillName) {
   modalMode = mode;
   const overlay = document.getElementById('modal-overlay');
   const title = document.getElementById('modal-title');
@@ -358,8 +358,18 @@ function openModal(mode) {
   document.getElementById('form-add').reset();
   document.getElementById('input-date').value = now.toISOString().slice(0, 10);
   document.getElementById('input-time').value = now.toTimeString().slice(0, 5);
+  if (prefillName) {
+    document.getElementById('input-name').value = prefillName;
+  }
   overlay.classList.remove('hidden');
-  setTimeout(() => document.getElementById('input-name').focus(), 300);
+  setTimeout(() => {
+    const nameInput = document.getElementById('input-name');
+    if (prefillName) {
+      document.getElementById('input-amount').focus();
+    } else {
+      nameInput.focus();
+    }
+  }, 300);
   updateNameSuggestions();
 }
 
@@ -395,6 +405,44 @@ function showRecordActions(id, name) {
       await refreshAll();
       showToast('已删除');
     }
+  };
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+}
+
+function showContactActions(name) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-sheet" style="text-align:center;">
+      <div class="modal-handle"></div>
+      <div style="margin-bottom:8px;">
+        <div class="contact-avatar" style="background:#4F46E5;width:48px;height:48px;font-size:20px;margin:0 auto;">${escapeHtml(name[0])}</div>
+      </div>
+      <h3 style="margin-bottom:4px;">${escapeHtml(name)}</h3>
+      <p style="font-size:12px;color:#A0AEC0;margin-bottom:20px;">选择操作</p>
+      <button class="btn" style="width:100%;margin-bottom:8px;background:#C53030;color:#fff;" id="act-lend">🔴 记录借出</button>
+      <button class="btn" style="width:100%;margin-bottom:8px;background:#38A169;color:#fff;" id="act-repay">🟢 记录还款</button>
+      <button class="btn" style="width:100%;margin-bottom:8px;background:#4F46E5;color:#fff;" id="act-detail">📋 查看详情</button>
+      <button class="btn btn-cancel" style="width:100%;" id="act-close">取消</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#act-close').onclick = () => overlay.remove();
+  overlay.querySelector('#act-lend').onclick = () => {
+    overlay.remove();
+    openModal('lend', name);
+  };
+  overlay.querySelector('#act-repay').onclick = () => {
+    overlay.remove();
+    openModal('repay', name);
+  };
+  overlay.querySelector('#act-detail').onclick = async () => {
+    overlay.remove();
+    const records = await dbGetAll();
+    showPersonDetail(records, name);
   };
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();
