@@ -411,21 +411,48 @@ function showRecordActions(id, name) {
   });
 }
 
-function showContactActions(name) {
+async function showContactActions(name) {
+  const records = await dbGetAll();
+  const personRecords = records.filter(r => r.name === name).sort((a, b) => b.createdAt - a.createdAt);
+  const { totalLend, totalRepay, totalOwing } = calcSummary(personRecords);
+  const isCleared = totalOwing <= 0;
+
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal-sheet" style="text-align:center;">
+    <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div style="margin-bottom:8px;">
-        <div class="contact-avatar" style="background:#4F46E5;width:48px;height:48px;font-size:20px;margin:0 auto;">${escapeHtml(name[0])}</div>
+
+      <!-- 联系人信息 -->
+      <div style="text-align:center;margin-bottom:12px;">
+        <div class="contact-avatar" style="background:#4F46E5;width:48px;height:48px;font-size:20px;margin:0 auto 8px;">${escapeHtml(name[0])}</div>
+        <h3 style="margin-bottom:2px;">${escapeHtml(name)}</h3>
+        <div style="display:flex;justify-content:center;gap:20px;font-size:13px;color:#718096;">
+          <span>借出 <b style="color:#C53030">${formatMoney(totalLend)}</b></span>
+          <span>还款 <b style="color:#38A169">${formatMoney(totalRepay)}</b></span>
+          <span>${isCleared ? '✅ 已还清' : '欠 <b style="color:#C53030">' + formatMoney(totalOwing) + '</b>'}</span>
+        </div>
       </div>
-      <h3 style="margin-bottom:4px;">${escapeHtml(name)}</h3>
-      <p style="font-size:12px;color:#A0AEC0;margin-bottom:20px;">选择操作</p>
-      <button class="btn" style="width:100%;margin-bottom:8px;background:#C53030;color:#fff;" id="act-lend">🔴 记录借出</button>
-      <button class="btn" style="width:100%;margin-bottom:8px;background:#38A169;color:#fff;" id="act-repay">🟢 记录还款</button>
-      <button class="btn" style="width:100%;margin-bottom:8px;background:#4F46E5;color:#fff;" id="act-detail">📋 查看详情</button>
-      <button class="btn btn-cancel" style="width:100%;" id="act-close">取消</button>
+
+      <!-- 记录列表 -->
+      <div style="max-height:40vh;overflow-y:auto;border-top:1px solid #f0f0f0;padding-top:8px;">
+        ${personRecords.length === 0 ? '<p style="text-align:center;color:#A0AEC0;padding:20px;">暂无记录</p>' : personRecords.map(r => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;padding:2px 8px;border-radius:10px;font-weight:600;${r.type === 'lend' ? 'background:#FED7D7;color:#C53030' : 'background:#C6F6D5;color:#38A169'}">${r.type === 'lend' ? '借出' : '还款'}</span>
+              <span style="font-size:13px;color:#718096;">${r.date} ${r.time || ''}${r.note ? ' · ' + r.note : ''}</span>
+            </div>
+            <span style="font-weight:700;${r.type === 'lend' ? 'color:#C53030' : 'color:#38A169'}">${r.type === 'lend' ? '-' : '+'}${formatMoney(r.amount)}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- 操作按钮 -->
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="btn" style="flex:1;background:#C53030;color:#fff;" id="act-lend">🔴 借出</button>
+        <button class="btn" style="flex:1;background:#38A169;color:#fff;" id="act-repay">🟢 还款</button>
+      </div>
+      <button class="btn btn-cancel" style="width:100%;margin-top:8px;" id="act-close">关闭</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -438,11 +465,6 @@ function showContactActions(name) {
   overlay.querySelector('#act-repay').onclick = () => {
     overlay.remove();
     openModal('repay', name);
-  };
-  overlay.querySelector('#act-detail').onclick = async () => {
-    overlay.remove();
-    const records = await dbGetAll();
-    showPersonDetail(records, name);
   };
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();
